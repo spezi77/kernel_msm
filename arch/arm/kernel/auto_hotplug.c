@@ -87,6 +87,8 @@ static unsigned int min_sampling_rate = DEFAULT_MIN_SAMPLING_RATE;
 static unsigned int sampling_periods = DEFAULT_SAMPLING_PERIODS;
 static unsigned int live_sampling_periods = DEFAULT_SAMPLING_PERIODS;
 static unsigned int index_max_value  = (DEFAULT_SAMPLING_PERIODS - 1);
+static unsigned int min_online_cpus = 1;
+static unsigned int max_online_cpus;
 
 struct delayed_work hotplug_decision_work;
 struct delayed_work hotplug_unpause_work;
@@ -203,6 +205,42 @@ static int set_sampling_periods(const char *val, const struct kernel_param *kp)
 	return ret;
 }
 
+static int min_online_cpus_set(const char *arg, const struct kernel_param *kp)
+{
+    int ret; 
+    
+    ret = param_set_int(arg, kp);
+    
+    ///at least 1 core must run even if set value is out of range
+    if ((min_online_cpus < 1) || (min_online_cpus > CPUS_AVAILABLE))
+        min_online_cpus = 1;
+    
+    return ret;
+}
+
+static int max_online_cpus_set(const char *arg, const struct kernel_param *kp)
+{
+    int ret;
+
+    ret = param_set_int(arg, kp);
+
+    ///at least 1 core must run even if set value is out of range
+    if ((max_online_cpus < 1) || (max_online_cpus > CPUS_AVAILABLE))
+        max_online_cpus = 1;
+
+    return ret;
+}
+
+static struct kernel_param_ops min_online_cpus_ops = {
+    .set = min_online_cpus_set,
+    .get = param_get_uint,
+};
+
+static struct kernel_param_ops max_online_cpus_ops = {
+    .set = max_online_cpus_set,
+    .get = param_get_uint,
+};
+
 static struct kernel_param_ops module_ops_enable_all_load_threshold = {
 	.set = set_enable_all_load_threshold,
 	.get = param_get_uint,
@@ -250,6 +288,12 @@ MODULE_PARM_DESC(enabled, "auto_hotplug debug to kernel log (Y/N)");
 
 module_param_cb(sampling_periods, &module_ops_sampling_periods, &sampling_periods, 0775);
 MODULE_PARM_DESC(sampling_periods, "auto_hotplug history sampling periods (5-50)");
+
+module_param_cb(min_online_cpus, &min_online_cpus_ops, &min_online_cpus, 0775);
+MODULE_PARM_DESC(min_online_cpus, "auto_hotplug min_online_cpus (1-#CPUs)");
+
+module_param_cb(max_online_cpus, &max_online_cpus_ops, &max_online_cpus, 0775);
+MODULE_PARM_DESC(max_online_cpus, "auto_hotplug max_online_cpus (1-#CPUs)");
 
 static void hotplug_decision_work_fn(struct work_struct *work)
 {
@@ -324,7 +368,7 @@ static void hotplug_decision_work_fn(struct work_struct *work)
 		pr_info("average load: %d\n", avg_running);
 
 	if (likely(!(flags & HOTPLUG_DISABLED))) {
-		if (unlikely((avg_running >= enable_all_load_threshold) && (online_cpus < available_cpus))) {
+		if (unlikely((avg_running >= enable_all_load_threshold) && (online_cpus < available_cpus) && (max_online_cpus > online_cpus))) {
 			if (debug)
 				pr_info("auto_hotplug: Onlining all CPUs, avg running: %d\n", avg_running);
 
@@ -344,7 +388,7 @@ static void hotplug_decision_work_fn(struct work_struct *work)
 		} else if (flags & HOTPLUG_PAUSED) {
 			schedule_delayed_work_on(0, &hotplug_decision_work, min_sampling_rate_in_jiffies);
 			return;
-		} else if ((avg_running >= enable_load) && (online_cpus < available_cpus)) {
+		} else if ((avg_running >= enable_load) && (online_cpus < available_cpus) && (max_online_cpus > online_cpus)) {
 			if (debug)
 				pr_info("auto_hotplug: Onlining single CPU, avg running: %d\n", avg_running);
 			if (delayed_work_pending(&hotplug_offline_work))
@@ -465,11 +509,13 @@ void hotplug_disable(bool flag)
 
 void hotplug_boostpulse(void)
 {
+	unsigned int online_cpus;
+	online_cpus = num_online_cpus();
 	if (unlikely(flags & (EARLYSUSPEND_ACTIVE
 		| HOTPLUG_DISABLED)))
 		return;
 
-	if (!(flags & BOOSTPULSE_ACTIVE)) {
+	if (!(flags & BOOSTPULSE_ACTIVE) && (max_online_cpus > online_cpus)) {
 		flags |= BOOSTPULSE_ACTIVE;
 		/*
 		 * If there are less than 2 CPUs online, then online
@@ -478,11 +524,11 @@ void hotplug_boostpulse(void)
 		 * Either way, we don't allow any cpu_down()
 		 * whilst the user is interacting with the device.
 		 */
-		if (likely(num_online_cpus() < 2)) {
+		if (likely(online_cpus < 2)) {
 			cancel_delayed_work_sync(&hotplug_offline_work);
 			flags |= HOTPLUG_PAUSED;
 			schedule_work(&hotplug_online_single_work);
-			schedule_delayed_work(&hotplug_unpause_work, HZ * 2);
+			schedule_delayed_work(&hotplug_unpause_work, HZ);
 		} else {
 			if (debug)
 				pr_info("auto_hotplug: %s: %d CPUs online\n", __func__, num_online_cpus());
@@ -522,7 +568,7 @@ static void auto_hotplug_late_resume(struct early_suspend *handler)
 
 	flags &= ~EARLYSUSPEND_ACTIVE;
 
-	schedule_delayed_work_on(0, &hotplug_decision_work, HZ);
+	schedule_delayed_work_on(0, &hotplug_decision_work, HZ/2);
 }
 
 static struct early_suspend auto_hotplug_suspend = {
@@ -534,14 +580,15 @@ static struct early_suspend auto_hotplug_suspend = {
 int __init auto_hotplug_init(void)
 {
 	pr_info("auto_hotplug: v0.220 by _thalamus\n");
-	pr_info("auto_hotplug: rev 2 enhanced by motley\n");
+	pr_info("auto_hotplug: rev 3 enhanced by motley\n");
 	pr_info("auto_hotplug: %d CPUs detected\n", CPUS_AVAILABLE);
 
 	/* Init circular buffer for history to the default default size */
 	history = kmalloc(live_sampling_periods * sizeof(int),GFP_KERNEL);
 
-	/* Placing this here to avoid a compiler warning */
+	/* Placing these here to avoid a compiler warning */
 	enable_all_load_threshold = DEFAULT_ENABLE_ALL_LOAD_THRESHOLD;
+	max_online_cpus = num_possible_cpus();
 
 	INIT_DELAYED_WORK(&hotplug_decision_work, hotplug_decision_work_fn);
 	INIT_DELAYED_WORK_DEFERRABLE(&hotplug_unpause_work, hotplug_unpause_work_fn);
