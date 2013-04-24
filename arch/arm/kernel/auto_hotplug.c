@@ -207,10 +207,10 @@ static int set_sampling_periods(const char *val, const struct kernel_param *kp)
 
 static int min_online_cpus_set(const char *arg, const struct kernel_param *kp)
 {
-    int ret; 
-    
+    int ret;
+
     ret = param_set_int(arg, kp);
-    
+
     ///at least 1 core must run even if set value is out of range
     if ((min_online_cpus < 1) || (min_online_cpus > CPUS_AVAILABLE))
         min_online_cpus = 1;
@@ -575,7 +575,7 @@ static void auto_hotplug_late_resume(struct early_suspend *handler)
 		history[i] = 500;
 	}
 
-	schedule_delayed_work_on(0, &hotplug_decision_work, HZ/2);
+	schedule_work(&hotplug_online_all_work);
 }
 
 static struct early_suspend auto_hotplug_suspend = {
