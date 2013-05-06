@@ -412,7 +412,7 @@ static inline int calculate_vdd_dig(const struct acpu_level *tgt)
 		   max(l2_pll_vdd_dig, cpu_pll_vdd_dig));
 }
 
-static bool enable_boost = true;
+static bool enable_boost = false;
 module_param_named(boost, enable_boost, bool, S_IRUGO | S_IWUSR);
 static unsigned int lower_uV;
 module_param(lower_uV, uint, S_IRUGO | S_IWUSR);
