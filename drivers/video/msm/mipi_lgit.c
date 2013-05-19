@@ -140,6 +140,7 @@ static int mipi_lgit_lcd_on(struct platform_device *pdev)
 
 	lcd_isactive = 1;
 
+	kcal_refresh_values();
 	pr_info("%s finished\n", __func__);
 	return 0;
 }
