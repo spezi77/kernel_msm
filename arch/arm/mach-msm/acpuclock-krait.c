@@ -53,6 +53,8 @@ static DEFINE_SPINLOCK(l2_lock);
 #ifdef CONFIG_DEBUG_FS
 static int gpvs_bin;
 #endif
+char *cpu_type = "Unknown";
+module_param(cpu_type, charp, 0755);
 
 static struct drv_data {
 	struct acpu_level *acpu_freq_tbl;
@@ -1051,13 +1053,23 @@ static int __init get_pvs_bin(u32 pte_efuse)
 
 	if (pvs_bin == 0x7) {
 		pvs_bin = 0;
-		dev_warn(drv.dev, "ACPU PVS: Defaulting to %d\n", pvs_bin);
-	} else {
-		dev_info(drv.dev, "ACPU PVS: %d\n", pvs_bin);
 	}
 #ifdef CONFIG_DEBUG_FS
 	gpvs_bin = pvs_bin;
 #endif
+
+	// Report PVS Bin
+	switch(pvs_bin)
+	{
+		case 0: cpu_type = "Slow";break;
+		case 1: cpu_type = "Nominal";break;
+		case 2: cpu_type = "Fast";break;
+		case 3: cpu_type = "Faster";break;
+		default: cpu_type = "Unknown";break;
+	}
+
+	dev_info(drv.dev, "ACPU PVS: %s\n", cpu_type);
+
 	return pvs_bin;
 }
 
