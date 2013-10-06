@@ -34,11 +34,11 @@
 #define AGC_COMPRESIION_RATE        0
 #define AGC_OUTPUT_LIMITER_DISABLE  1
 /* AGC_FIXED_GAIN  on the amp datasheet default value is 6 */
-#define AGC_FIXED_GAIN              20
+#define AGC_FIXED_GAIN              12
 /* AKT_TIME on the amp datasheet default value is 5 */
 #define AKT_TIME					30
 /* REL_TIME on the amp datasheet default value is 11 */
-#define REL_TIME					4
+#define REL_TIME					250
 #define MAX_GAIN					12
 
 #define GPIO_EAR_MIC_BIAS_EN        PM8921_GPIO_PM_TO_SYS(20)
