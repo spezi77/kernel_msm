@@ -188,7 +188,7 @@ static void tz_idle(struct kgsl_device *device, struct kgsl_pwrscale *pwrscale)
 	if (time_is_after_jiffies(window_time + msecs_to_jiffies(sample_time_ms)))
 		return;
 
-	gpu_stats.total_time_ms = jiffies_to_msecs((long)jiffies - (long)window_time);
+	gpu_stats.total_time_ms = jiffies_to_msecs(jiffies - window_time);
 	do_div(priv->bin.busy_time, USEC_PER_MSEC);
 	gpu_stats.busy_time_ms = priv->bin.busy_time;
 
@@ -198,8 +198,8 @@ static void tz_idle(struct kgsl_device *device, struct kgsl_pwrscale *pwrscale)
 
 	if (debug)
 	{ 
-		pr_info("GPU current load: %ld\n", gpu_stats.busy_time_ms);
-		pr_info("GPU total time load: %ld\n", gpu_stats.total_time_ms);
+		pr_info("GPU current load: %lu\n", gpu_stats.busy_time_ms);
+		pr_info("GPU total time load: %lu\n", gpu_stats.total_time_ms);
 		pr_info("GPU frequency: %d\n", 
 								pwr->pwrlevels[pwr->active_pwrlevel].gpu_freq);
 	}
