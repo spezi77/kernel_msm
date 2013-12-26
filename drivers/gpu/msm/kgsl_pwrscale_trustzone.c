@@ -82,7 +82,7 @@ static int __secure_tz_entry3(u32 cmd, u32 val1, u32 val2,
 
 unsigned long window_time = 0;
 unsigned long sample_time_ms = 100;
-unsigned int up_threshold = 60;
+unsigned int up_threshold = 50;
 unsigned int down_threshold = 25;
 unsigned int up_differential = 10;
 bool debug = 0;
@@ -253,7 +253,9 @@ static void tz_sleep(struct kgsl_device *device,
 	struct tz_priv *priv = pwrscale->priv;
 	struct kgsl_pwrctrl *pwr = &device->pwrctrl;
 
-	kgsl_pwrctrl_pwrlevel_change(device, pwr->min_pwrlevel);
+	/* Do not ramp down forcelfully if the load is still above down_threshold */
+	if (gpu_stats.load < down_threshold)
+		kgsl_pwrctrl_pwrlevel_change(device, pwr->min_pwrlevel);
 
 	if (debug)
 	{
