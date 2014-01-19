@@ -209,6 +209,18 @@ static void __prandom_reseed(bool late)
 
 		prandom_warmup(state);
 	}
+out:
+	spin_unlock_irqrestore(&lock, flags);
+}
+
+void prandom_reseed_late(void)
+{
+	__prandom_reseed(true);
+}
+
+static int __init prandom_reseed(void)
+{
+	__prandom_reseed(false);
 	prandom_start_seed_timer();
 	return 0;
 }
