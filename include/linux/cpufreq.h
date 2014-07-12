@@ -391,6 +391,9 @@ extern struct cpufreq_governor cpufreq_gov_smartmax;
 #elif defined(CONFIG_CPU_FREQ_DEFAULT_GOV_STOCKDEMAND)
 extern struct cpufreq_governor cpufreq_gov_stockdemand;
 #define CPUFREQ_DEFAULT_GOVERNOR    (&cpufreq_gov_stockdemand)
+#elif defined(CONFIG_CPU_FREQ_DEFAULT_GOV_YANKDEMAND)
+extern struct cpufreq_governor cpufreq_gov_yankdemand;
+#define CPUFREQ_DEFAULT_GOVERNOR	(&cpufreq_gov_yankdemand)
 #endif
 
 
