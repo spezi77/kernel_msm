@@ -1692,6 +1692,13 @@ config ASMP
 	  Automatically hotplugs the multiple cpu cores on and off
 	  based on cpu load and suspend state
 
+config MAKO_HOTPLUG
+	bool "hotplug driver"
+	depends on HOTPLUG_CPU
+	default n
+	help
+	  The Dynamic hotplug driver automatically online/offline CPUs by FranciscoFranco.
+
 config LOCAL_TIMERS
 	bool "Use local timer interrupts"
 	depends on SMP
