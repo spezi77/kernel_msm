@@ -502,7 +502,7 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 
 			rc = sysfs_create_group(cpufreq_global_kobject,
 						&dbs_attr_group);
-			if (rc) {
+			if (rc && rc != -EEXIST) {
 				mutex_unlock(&dbs_mutex);
 				return rc;
 			}
@@ -547,9 +547,6 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 					CPUFREQ_TRANSITION_NOTIFIER);
 
 		mutex_unlock(&dbs_mutex);
-		if (!dbs_enable)
-			sysfs_remove_group(cpufreq_global_kobject,
-					   &dbs_attr_group);
 
 		break;
 
