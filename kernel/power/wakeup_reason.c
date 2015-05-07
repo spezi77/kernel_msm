@@ -525,7 +525,7 @@ const struct list_head* get_wakeup_reasons(unsigned long timeout,
 		unsigned long time_waited;
 		if (timeout)
 			signalled = wait_for_completion_timeout(&wakeups_completion, timeout);
-		if (WARN_ON(!signalled)) {
+		if (!signalled) {
 			pr_warn("%s: completion timeout\n", __func__);
 			wakeup_ready_timeout++;
 			stop_logging_wakeup_reasons();
