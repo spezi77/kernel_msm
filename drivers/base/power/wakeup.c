@@ -384,6 +384,53 @@ int device_set_wakeup_enable(struct device *dev, bool enable)
 }
 EXPORT_SYMBOL_GPL(device_set_wakeup_enable);
 
+/**
+ * wakup_source_deactivate - Mark given wakeup source as inactive.
+ * @ws: Wakeup source to handle.
+ *
+ * Update the @ws' statistics and notify the PM core that the wakeup source has
+ * become inactive by decrementing the counter of wakeup events being processed
+ * and incrementing the counter of registered wakeup events.
+ */
+static void wakeup_source_deactivate(struct wakeup_source *ws)
+{
+        unsigned int cnt, inpr, cec;
+        ktime_t duration;
+        ktime_t now;
+
+        ws->relax_count++;
+        /*
+         * __pm_relax() may be called directly or from a timer function.
+         * If it is called directly right after the timer function has been
+         * started, but before the timer function calls __pm_relax(), it is
+         * possible that __pm_stay_awake() will be called in the meantime and
+         * will set ws->active.  Then, ws->active may be cleared immediately
+         * by the __pm_relax() called from the timer function, but in such a
+         * case ws->relax_count will be different from ws->active_count.
+         */
+        if (ws->relax_count != ws->active_count) {
+                ws->relax_count--;
+                return;
+        }
+
+        ws->active = false;
+
+        now = ktime_get();
+	duration = ktime_sub(now, ws->last_time);
+	ws->total_time = ktime_add(ws->total_time, duration);
+	if (ktime_to_ns(duration) > ktime_to_ns(ws->max_time))
+		ws->max_time = duration;
+
+	del_timer(&ws->timer);
+	ws->timer_expires = 0;
+
+	/*
+	 * Increment the counter of registered wakeup events and decrement the
+	 * couter of wakeup events in progress simultaneously.
+	 */
+	atomic_add(MAX_IN_PROGRESS, &combined_event_count);
+}
+
 /*
  * The functions below use the observation that each wakeup event starts a
  * period in which the system should not be suspended.  The moment this period
@@ -422,23 +469,26 @@ EXPORT_SYMBOL_GPL(device_set_wakeup_enable);
  */
 static void wakeup_source_activate(struct wakeup_source *ws)
 {
-	if (!enable_si_ws && !strcmp(ws->name, "sensor_ind"))
+	if (((!enable_si_ws && !strcmp(ws->name, "sensor_ind")) ||
+		(!enable_wlan_rx_wake_ws &&
+			!strcmp(ws->name, "wlan_rx_wake")) ||
+		(!enable_wlan_ctrl_wake_ws &&
+			!strcmp(ws->name, "wlan_ctrl_wake")) ||
+		(!enable_wlan_wake_ws &&
+			!strcmp(ws->name, "wlan_wake")) ||
+		(!enable_bluedroid_timer_ws &&
+			!strcmp(ws->name, "bluedroid_timer")) ||
+		(!enable_bluesleep_ws &&
+			!strcmp(ws->name, "bluesleep")) ||
+		(!enable_msm_hsic_ws && !strcmp(ws->name, "msm_hsic_host")))) {
+		/*
+		 * let's try and deactivate this wakeup source since the user
+		 * clearly doesn't want it. The user is responsible for any
+		 * adverse effects and has been warned about it
+		 */
+		wakeup_source_deactivate(ws);
 		return;
-
-	if (!enable_wlan_rx_wake_ws && !strcmp(ws->name, "wlan_rx_wake"))
-                return;
-
-	if (!enable_wlan_ctrl_wake_ws && !strcmp(ws->name, "wlan_ctrl_wake"))
-                return;
-
-	if (!enable_wlan_wake_ws && !strcmp(ws->name, "wlan_wake"))
-                return;
-
-	if (!enable_bluedroid_timer_ws && !strcmp(ws->name, "bluedroid_timer"))
-		return;
-
-	if (!enable_msm_hsic_ws && !strcmp(ws->name, "msm_hsic_host"))
-		return;
+	}
 
 	ws->active = true;
 	ws->active_count++;
@@ -497,52 +547,6 @@ void pm_stay_awake(struct device *dev)
 	spin_unlock_irqrestore(&dev->power.lock, flags);
 }
 EXPORT_SYMBOL_GPL(pm_stay_awake);
-
-/**
- * wakup_source_deactivate - Mark given wakeup source as inactive.
- * @ws: Wakeup source to handle.
- *
- * Update the @ws' statistics and notify the PM core that the wakeup source has
- * become inactive by decrementing the counter of wakeup events being processed
- * and incrementing the counter of registered wakeup events.
- */
-static void wakeup_source_deactivate(struct wakeup_source *ws)
-{
-	ktime_t duration;
-	ktime_t now;
-
-	ws->relax_count++;
-	/*
-	 * __pm_relax() may be called directly or from a timer function.
-	 * If it is called directly right after the timer function has been
-	 * started, but before the timer function calls __pm_relax(), it is
-	 * possible that __pm_stay_awake() will be called in the meantime and
-	 * will set ws->active.  Then, ws->active may be cleared immediately
-	 * by the __pm_relax() called from the timer function, but in such a
-	 * case ws->relax_count will be different from ws->active_count.
-	 */
-	if (ws->relax_count != ws->active_count) {
-		ws->relax_count--;
-		return;
-	}
-
-	ws->active = false;
-
-	now = ktime_get();
-	duration = ktime_sub(now, ws->last_time);
-	ws->total_time = ktime_add(ws->total_time, duration);
-	if (ktime_to_ns(duration) > ktime_to_ns(ws->max_time))
-		ws->max_time = duration;
-
-	del_timer(&ws->timer);
-	ws->timer_expires = 0;
-
-	/*
-	 * Increment the counter of registered wakeup events and decrement the
-	 * couter of wakeup events in progress simultaneously.
-	 */
-	atomic_add(MAX_IN_PROGRESS, &combined_event_count);
-}
 
 /**
  * __pm_relax - Notify the PM core that processing of a wakeup event has ended.
