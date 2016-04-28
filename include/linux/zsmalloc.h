@@ -27,6 +27,6 @@ void zs_free(struct zs_pool *pool, void *obj);
 void *zs_map_object(struct zs_pool *pool, void *handle);
 void zs_unmap_object(struct zs_pool *pool, void *handle);
 
-unsigned long zs_get_total_pages(struct zs_pool *pool);
+u64 zs_get_total_size_bytes(struct zs_pool *pool);
 
 #endif
