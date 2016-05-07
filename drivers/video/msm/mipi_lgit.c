@@ -21,6 +21,7 @@
 #include <linux/syscore_ops.h>
 #include <linux/device.h>
 #include <linux/miscdevice.h>
+#include <linux/display_state.h>
 
 #include "msm_fb.h"
 #include "mipi_dsi.h"
@@ -36,6 +37,13 @@ static int skip_init;
 static int lcd_isactive = 0;
 
 #define DSV_ONBST 57
+
+bool display_on = true;
+
+bool is_display_on()
+{
+	return display_on;
+}
 
 static int lgit_external_dsv_onoff(uint8_t on_off)
 {
@@ -72,6 +80,8 @@ static int mipi_lgit_lcd_on(struct platform_device *pdev)
 	int ret = 0;
 
 	pr_info("%s started\n", __func__);
+
+	display_on = true;
 
 	mfd = platform_get_drvdata(pdev);
 	local_mfd = mfd;
@@ -133,6 +143,8 @@ static int mipi_lgit_lcd_off(struct platform_device *pdev)
 	pr_info("%s started\n", __func__);
 	
 	lcd_isactive = 0;
+
+	display_on = false;
 
 	if (mipi_lgit_pdata->bl_pwm_disable)
 		mipi_lgit_pdata->bl_pwm_disable();
