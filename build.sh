@@ -16,12 +16,13 @@ DEFCONFIG="hellspawn_mako_defconfig"
 # Kernel Details
 BASE_HC_VER="hellspawn-N4-mm-6.0-revival"
 VER="-r00"
-HC_VER="$BASE_HC_VER$VER"
+HC_VER="-$BASE_HC_VER$VER"
 
 # Vars
 export ARCH=arm
 export SUBARCH=arm
-export LOCALVERSION=`echo HC_VER`
+export CROSS_COMPILE=/home/spezi77/android/uber-tc/arm-eabi-5.x/bin/arm-eabi-
+export LOCALVERSION="$HC_VER"
 
 # Paths
 KERNEL_DIR=`pwd`
