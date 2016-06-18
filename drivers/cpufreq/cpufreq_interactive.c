@@ -416,7 +416,7 @@ static void cpufreq_interactive_timer(unsigned long data)
 		timer_rate = max(timer_rate, SCREEN_OFF_TIMER_RATE);
 	}
 
-	spin_lock_irqsave(&pcpu->target_freq_lock, flags);
+	spin_lock_irqsave(&pcpu->target_freq, flags);
 	do_div(cputime_speedadj, delta_time);
 	loadadjfreq = (unsigned int)cputime_speedadj * 100;
 	cpu_load = loadadjfreq / pcpu->target_freq;
@@ -1012,7 +1012,7 @@ static ssize_t store_timer_rate(struct kobject *kobj,
 			struct attribute *attr, const char *buf, size_t count)
 {
 	int ret;
-	unsigned long val;
+	unsigned long val, val_round;
 
 	ret = strict_strtoul(buf, 0, &val);
 	if (ret < 0)
