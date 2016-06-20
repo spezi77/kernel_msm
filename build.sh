@@ -14,7 +14,7 @@ KERNEL="zImage"
 DEFCONFIG="hellspawn_mako_defconfig"
 
 # Kernel Details
-BASE_HC_VER="hellspawn-N4-mm-6.0-revival"
+BASE_HC_VER="hellspawn-N4-revival"
 VER="-marshmallow-stock"
 HC_VER="-$BASE_HC_VER$VER"
 
@@ -43,61 +43,21 @@ function make_kernel {
 		cp -vr $ZIMAGE_DIR/$KERNEL $REPACK_DIR/tmp/anykernel
 }
 
-function make_bs_kernel_TC5 {
-		HC_VER="$BASE_HC_VER$VER-BS-UBERTC-5.4"
-		echo "[....Building `echo $HC_VER`....]"
-		export LOCALVERSION=`echo HC_VER`
-		export CROSS_COMPILE=/home/spezi77/android/uber-tc/arm-eabi-5.x/bin/arm-eabi-
-		make $DEFCONFIG
-		make $THREAD
-		cp -vr $ZIMAGE_DIR/$KERNEL $REPACK_DIR/tmp/anykernel
-}
-
-function make_cm_kernel_TC5 {
+function make_cm_kernel {
 		HC_VER="$BASE_HC_VER$VER-CM-UBERTC-5.4"
 		echo "[....Building `echo $HC_VER`....]"
-		export LOCALVERSION=`echo HC_VER`
+		export LOCALVERSION=`echo -$HC_VER`
 		export CROSS_COMPILE=/home/spezi77/android/uber-tc/arm-eabi-5.x/bin/arm-eabi-
 		make $DEFCONFIG
 		make $THREAD
 		cp -vr $ZIMAGE_DIR/$KERNEL $REPACK_DIR/tmp/anykernel
 }
 
-function make_aosp_kernel_TC5 {
+function make_aosp_kernel {
 		HC_VER="$BASE_HC_VER$VER-AOSP-UBERTC-5.4"
 		echo "[....Building `echo $HC_VER`....]"
-		export LOCALVERSION=`echo HC_VER`
+		export LOCALVERSION=`echo -$HC_VER`
 		export CROSS_COMPILE=/home/spezi77/android/uber-tc/arm-eabi-5.x/bin/arm-eabi-
-		make $DEFCONFIG
-		make $THREAD
-		cp -vr $ZIMAGE_DIR/$KERNEL $REPACK_DIR/tmp/anykernel
-}
-
-function make_bs_kernel_TC7 {
-		HC_VER="$BASE_HC_VER$VER-BS-UBERTC-7.0"
-		echo "[....Building `echo $HC_VER`....]"
-		export LOCALVERSION=`echo HC_VER`
-		export CROSS_COMPILE=/home/spezi77/android/prebuilts/gcc/linux-x86/arm/arm-eabi-7.0/bin/arm-eabi-
-		make $DEFCONFIG
-		make $THREAD
-		cp -vr $ZIMAGE_DIR/$KERNEL $REPACK_DIR/tmp/anykernel
-}
-
-function make_cm_kernel_TC7 {
-		HC_VER="$BASE_HC_VER$VER-CM-UBERTC-7.0"
-		echo "[....Building `echo $HC_VER`....]"
-		export LOCALVERSION=`echo HC_VER`
-		export CROSS_COMPILE=/home/spezi77/android/prebuilts/gcc/linux-x86/arm/arm-eabi-7.0/bin/arm-eabi-
-		make $DEFCONFIG
-		make $THREAD
-		cp -vr $ZIMAGE_DIR/$KERNEL $REPACK_DIR/tmp/anykernel
-}
-
-function make_aosp_kernel_TC7 {
-		HC_VER="$BASE_HC_VER$VER-AOSP-UBERTC-7.0"
-		echo "[....Building `echo $HC_VER`....]"
-		export LOCALVERSION=`echo HC_VER`
-		export CROSS_COMPILE=/home/spezi77/android/prebuilts/gcc/linux-x86/arm/arm-eabi-7.0/bin/arm-eabi-
 		make $DEFCONFIG
 		make $THREAD
 		cp -vr $ZIMAGE_DIR/$KERNEL $REPACK_DIR/tmp/anykernel
@@ -108,26 +68,13 @@ function git_revert_cm_commits {
 		branch_name=${branch_name##refs/heads/}
 		branch_name=${branch_name:-HEAD}
 		git checkout -b temp-for-making-aosp-builds
-		git revert 091183726158125d1f72f82c7ea8326dda08a86a --no-edit
-		git revert feda27448d5dad766dd06066f9f318f94a938ac3 --no-edit
-}
-
-function git_revert_to_cm_comp_gamma {
-		branch_name=$(git symbolic-ref -q HEAD)
-		branch_name=${branch_name##refs/heads/}
-		branch_name=${branch_name:-HEAD}
-		git checkout -b temp-for-making-cm-builds
-		git revert aec312d0288f709f809a9744760b1055704aa421 --no-edit
-		git revert da1972c44274be088f676cbb5a2953538a855d90 --no-edit
-		git revert f7acaa7cb32396c76eb7c8054474cbaa30c8e759 --no-edit
-		git revert 48a60002eb5f1838a01efdc28e040b7b617ee756 --no-edit
-		git revert 244ddc67e3da111b31f017e76c84ddcd85493150 --no-edit
+		git revert 212528617c53a7e634e841febc64810a7a7b4e1f --no-edit
+		git revert 2308965b6de6b33c55e0562d335a78c1f9c1fcca --no-edit
 }
 
 function git_switch_to_previous_branch {
 		git checkout $branch_name
 		git branch -D temp-for-making-aosp-builds
-		git branch -D temp-for-making-cm-builds
 }
 
 function make_zip {
@@ -227,7 +174,7 @@ case "$cchoice" in
 		clean_all
 		echo -e "${green}"
 		echo
-		make_bs_kernel_TC5
+		make_cm_kernel
 		echo
 		echo -e "${restore}"
 		echo -e "${green}"
@@ -242,83 +189,6 @@ case "$cchoice" in
 		echo
 		echo -e "${restore}"
 		copy_dropbox
-
-		HC_VER="$BASE_HC_VER$VER"
-		echo -e "${green}"
-		echo
-		echo "[..........Cleaning up..........]"
-		echo
-		echo -e "${restore}"
-		clean_all
-		echo -e "${green}"
-		echo
-		make_bs_kernel_TC7
-		echo
-		echo -e "${restore}"
-		echo -e "${green}"
-		echo
-		echo "[....Make `echo $HC_VER`.zip....]"
-		echo
-		echo -e "${restore}"
-		make_zip
-		echo -e "${green}"
-		echo
-		echo "[.....Moving `echo $HC_VER`.....]"
-		echo
-		echo -e "${restore}"
-		copy_dropbox
-
-		HC_VER="$BASE_HC_VER$VER"
-		echo -e "${green}"
-		echo
-		echo "[..........Cleaning up..........]"
-		echo
-		echo -e "${restore}"
-		clean_all
-		echo -e "${green}"
-		echo
-		git_revert_to_cm_comp_gamma
-		make_cm_kernel_TC5
-		echo
-		echo -e "${restore}"
-		echo -e "${green}"
-		echo
-		echo "[....Make `echo $HC_VER`.zip....]"
-		echo
-		echo -e "${restore}"
-		make_zip
-		echo -e "${green}"
-		echo
-		echo "[.....Moving `echo $HC_VER`.....]"
-		echo
-		echo -e "${restore}"
-		copy_dropbox
-
-		HC_VER="$BASE_HC_VER$VER"
-		echo -e "${green}"
-		echo
-		echo "[..........Cleaning up..........]"
-		echo
-		echo -e "${restore}"
-		clean_all
-		echo -e "${green}"
-		echo
-		make_cm_kernel_TC7
-		echo
-		echo -e "${restore}"
-		echo -e "${green}"
-		echo
-		echo "[....Make `echo $HC_VER`.zip....]"
-		echo
-		echo -e "${restore}"
-		make_zip
-		echo -e "${green}"
-		echo
-		echo "[.....Moving `echo $HC_VER`.....]"
-		echo
-		echo -e "${restore}"
-		copy_dropbox
-		git_switch_to_previous_branch
 
 		HC_VER="$BASE_HC_VER$VER"
 		echo -e "${green}"
@@ -330,32 +200,7 @@ case "$cchoice" in
 		echo -e "${green}"
 		echo
 		git_revert_cm_commits
-		make_aosp_kernel_TC5
-		echo
-		echo -e "${restore}"
-		echo -e "${green}"
-		echo
-		echo "[....Make `echo $HC_VER`.zip....]"
-		echo
-		echo -e "${restore}"
-		make_zip
-		echo -e "${green}"
-		echo
-		echo "[.....Moving `echo $HC_VER`.....]"
-		echo
-		echo -e "${restore}"
-		copy_dropbox
-
-		HC_VER="$BASE_HC_VER$VER"
-		echo -e "${green}"
-		echo
-		echo "[..........Cleaning up..........]"
-		echo
-		echo -e "${restore}"
-		clean_all
-		echo -e "${green}"
-		echo
-		make_aosp_kernel_TC7
+		make_aosp_kernel
 		echo
 		echo -e "${restore}"
 		echo -e "${green}"
