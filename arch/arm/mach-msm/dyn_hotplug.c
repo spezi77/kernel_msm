@@ -26,7 +26,7 @@
 #define INIT_DELAY		(60 * HZ) /* Initial delay to 60 sec */
 #define DELAY			(HZ / 2)
 #define UP_THRESHOLD		(75)
-#define MIN_ONLINE		(2)
+#define MIN_ONLINE		(1)
 #define MAX_ONLINE		(4)
 #define DEF_DOWN_TIMER_CNT	(6)	/* 3 secs */
 #define DEF_UP_TIMER_CNT	(2)	/* 1 sec */
