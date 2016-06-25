@@ -80,6 +80,7 @@ unsigned char flags;
  */
 static unsigned int debug = 0;
 
+static unsigned int enabled = 0;
 static unsigned int enable_all_load_threshold;
 static unsigned int enable_load_threshold = DEFAULT_ENABLE_LOAD_THRESHOLD;
 static unsigned int disable_load_threshold = DEFAULT_DISABLE_LOAD_THRESHOLD;
@@ -231,6 +232,28 @@ static int max_online_cpus_set(const char *arg, const struct kernel_param *kp)
     return ret;
 }
 
+static int set_enabled(const char *val, const struct kernel_param *kp)
+{
+	int ret = 0;
+
+	ret = param_set_bool(val, kp);
+	if (enabled) {
+		flags &= ~HOTPLUG_DISABLED;
+		flags &= ~HOTPLUG_PAUSED;
+		if (debug)
+			pr_info("auto_hotplug: Clearing disable flag\n");
+		schedule_delayed_work_on(0, &hotplug_decision_work, 0);
+	} else {
+		flags |= HOTPLUG_DISABLED;
+		if (debug)
+			pr_info("auto_hotplug: Setting disable flag\n");
+		cancel_delayed_work_sync(&hotplug_offline_work);
+		cancel_delayed_work_sync(&hotplug_decision_work);
+		cancel_delayed_work_sync(&hotplug_unpause_work);
+	}
+	return ret;
+}
+
 static struct kernel_param_ops min_online_cpus_ops = {
     .set = min_online_cpus_set,
     .get = param_get_uint,
@@ -271,6 +294,11 @@ static struct kernel_param_ops module_ops_sampling_periods = {
 	.get = param_get_uint,
 };
 
+static struct kernel_param_ops module_ops_enabled = {
+	.set = set_enabled,
+	.get = param_get_bool,
+};
+
 module_param_cb(enable_all_load_threshold, &module_ops_enable_all_load_threshold, &enable_all_load_threshold, 0775);
 MODULE_PARM_DESC(enable_all_load_threshold, "auto_hotplug load threshold to rapidly online all CPUs (270-550)");
 
@@ -284,7 +312,10 @@ module_param_cb(min_sampling_rate, &module_ops_min_sampling_rate, &min_sampling_
 MODULE_PARM_DESC(min_sampling_rate, "auto_hotplug minimum sampling rate (10-50ms)");
 
 module_param_cb(debug, &module_ops_debug, &debug, 0775);
-MODULE_PARM_DESC(enabled, "auto_hotplug debug to kernel log (Y/N)");
+MODULE_PARM_DESC(debug, "auto_hotplug debug to kernel log (Y/N)");
+
+module_param_cb(enabled, &module_ops_enabled, &enabled, 0775);
+MODULE_PARM_DESC(enabled, "auto_hotplug enabled (Y/N)");
 
 module_param_cb(sampling_periods, &module_ops_sampling_periods, &sampling_periods, 0775);
 MODULE_PARM_DESC(sampling_periods, "auto_hotplug history sampling periods (5-50)");
