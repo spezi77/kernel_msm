@@ -1691,7 +1691,7 @@ config ARM_AUTO_HOTPLUG
 	ARCH_MSM_KRAITMP
 	depends on !TEGRA_AUTO_HOTPLUG && !CPU_FREQ_GOV_PEGASUSQ && \
 	!CPU_FREQ_GOV_HOTPLUG && !MSM_MPDEC && !MSM_RUN_QUEUE_STATS
-	default y
+	default n
 
 config ASMP
 	bool "Multi-core automatic hotplug support"
