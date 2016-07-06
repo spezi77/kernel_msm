@@ -109,7 +109,6 @@ static __always_inline int read_seqretry(const seqlock_t *sl, unsigned start)
 	return unlikely(sl->sequence != start);
 }
 
-
 /*
  * Version using sequence counter only.
  * This can be used when code has its own mutex protecting the

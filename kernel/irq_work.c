@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2010 Red Hat, Inc., Peter Zijlstra <pzijlstr@redhat.com>
+ * Copyright (C) 2014, NVIDIA CORPORATION.  All rights reserved.
  *
  * Provides a framework for enqueueing and running callbacks from hardirq
  * context. The enqueueing is NMI-safe.
@@ -13,6 +14,7 @@
 #include <linux/hardirq.h>
 #include <linux/irqflags.h>
 #include <asm/processor.h>
+#include <asm/relaxed.h>
 
 /*
  * An entry can be in one of four states:
@@ -34,16 +36,21 @@ static DEFINE_PER_CPU(struct llist_head, irq_work_list);
  */
 static bool irq_work_claim(struct irq_work *work)
 {
-	unsigned long flags, nflags;
+	unsigned long flags, nflags, oflags;
 
 	for (;;) {
 		flags = work->flags;
 		if (flags & IRQ_WORK_PENDING)
 			return false;
 		nflags = flags | IRQ_WORK_FLAGS;
-		if (cmpxchg(&work->flags, flags, nflags) == flags)
+		oflags = cmpxchg(&work->flags, flags, nflags);
+		cpu_relaxed_read_long(&work->flags);
+		if (oflags == flags)
 			break;
-		cpu_relax();
+		if (oflags & IRQ_WORK_PENDING)
+			return false;
+		flags = oflags;
+		cpu_read_relax();
 	}
 
 	return true;
@@ -139,7 +146,7 @@ void irq_work_sync(struct irq_work *work)
 {
 	WARN_ON_ONCE(irqs_disabled());
 
-	while (work->flags & IRQ_WORK_BUSY)
-		cpu_relax();
+	while (cpu_relaxed_read_long(&work->flags) & IRQ_WORK_BUSY)
+		cpu_read_relax();
 }
 EXPORT_SYMBOL_GPL(irq_work_sync);
