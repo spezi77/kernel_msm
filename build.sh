@@ -15,7 +15,7 @@ DEFCONFIG="hellspawn_mako_defconfig"
 
 # Kernel Details
 BASE_HC_VER="N4-revival"
-VER="-marshmallow-r02"
+VER="-marshmallow-r03"
 HC_VER="-$BASE_HC_VER$VER"
 
 # Vars
@@ -93,7 +93,7 @@ function copy_dropbox {
 DATE_START=$(date +"%s")
 
 echo -e "${green}"
-echo "hellspawn-N4 Kernel Creation Script:"
+echo "Revival-N4 Kernel Creation Script:"
 echo
 
 echo "---------------"
