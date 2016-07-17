@@ -11,11 +11,11 @@ clear
 # Resources
 THREAD="-j6"
 KERNEL="zImage"
-DEFCONFIG="hellspawn_mako_defconfig"
+DEFCONFIG="revival_mako_defconfig"
 
 # Kernel Details
 BASE_HC_VER="N4-revival"
-VER="-marshmallow-r03"
+VER="-marshmallow-r04"
 HC_VER="-$BASE_HC_VER$VER"
 
 # Vars
@@ -26,10 +26,10 @@ export LOCALVERSION="$HC_VER"
 
 # Paths
 KERNEL_DIR=`pwd`
-REPACK_DIR="${HOME}/android/Kernel/anykernel_msm"
-ZIP_MOVE="${HOME}/android/Kernel/Releases/hellspawn-N4"
-ZIMAGE_DIR="${HOME}/android/Kernel/hellspawn-N4/arch/arm/boot"
-DB_FOLDER="${HOME}/Dropbox/Kernel-Betas/hellspawn-N4"
+REPACK_DIR="${HOME}/android/Kernel/anykernel_revival"
+ZIP_MOVE="${HOME}/android/Kernel/Releases/revival-N4"
+ZIMAGE_DIR="${HOME}/android/Kernel/revival-N4/arch/arm/boot"
+DB_FOLDER="${HOME}/Dropbox/Kernel-Betas/revival-N4"
 
 # Functions
 function clean_all {
