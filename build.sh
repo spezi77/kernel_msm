@@ -15,7 +15,7 @@ DEFCONFIG="revival_mako_defconfig"
 
 # Kernel Details
 BASE_HC_VER="N4-revival"
-VER="-marshmallow-r04"
+VER="-marshmallow-r05"
 HC_VER="-$BASE_HC_VER$VER"
 
 # Vars
