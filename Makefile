@@ -245,8 +245,8 @@ CONFIG_SHELL := $(shell if [ -x "$$BASH" ]; then echo $$BASH; \
 
 HOSTCC       = gcc
 HOSTCXX      = g++
-HOSTCFLAGS   = -Wall -Wmissing-prototypes -Wstrict-prototypes -O2 -fomit-frame-pointer -std=gnu89
-HOSTCXXFLAGS = -O2
+HOSTCFLAGS   = -Wall -Wmissing-prototypes -Wstrict-prototypes -O3 -fomit-frame-pointer -std=gnu89 -fgcse-las
+HOSTCXXFLAGS = -O3 -fgcse-las
 
 ifdef CONFIG_CC_GRAPHITE_OPTIMIZATION
 # More Graphite
@@ -357,13 +357,16 @@ CHECK		= sparse
 
 CHECKFLAGS     := -D__linux__ -Dlinux -D__STDC__ -Dunix -D__unix__ \
 		  -Wbitwise -Wno-return-void $(CF)
-CFLAGS_MODULE   =
-AFLAGS_MODULE   =
-LDFLAGS_MODULE  =
-CFLAGS_KERNEL	= -mcpu=cortex-a15 -mfpu=neon-vfpv4 -ftree-vectorize
-AFLAGS_KERNEL	= -mcpu=cortex-a15 -mfpu=neon-vfpv4 -ftree-vectorize
-CFLAGS_GCOV	= -fprofile-arcs -ftest-coverage
 
+
+KERNELFLAGS  = -Ofast -DNDEBUG -munaligned-access -fgcse-lm -fgcse-sm -fsingle-precision-constant -fforce-addr -fsched-spec-load -mtune=cortex-a15 -marm -mfpu=neon -ftree-vectorize -fpredictive-commoning -ffast-math -floop-nest-optimize $(GRAPHITE_FLAGS)
+MODFLAGS  = -DMODULE $(KERNELFLAGS)
+CFLAGS_MODULE   = $(MODFLAGS) -fno-pic
+AFLAGS_MODULE   = $(MODFLAGS)
+LDFLAGS_MODULE  = -T $(srctree)/scripts/module-common.lds
+CFLAGS_KERNEL  = $(KERNELFLAGS)
+AFLAGS_KERNEL  = $(KERNELFLAGS)
+CFLAGS_GCOV     = -fprofile-arcs -ftest-coverage
 
 # Use LINUXINCLUDE when you must reference the include/ directory.
 # Needed to be compatible with the O= option
@@ -374,17 +377,19 @@ LINUXINCLUDE    := -I$(srctree)/arch/$(hdr-arch)/include \
 
 KBUILD_CPPFLAGS := -D__KERNEL__
 
-KBUILD_CFLAGS   := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
-		   -fno-strict-aliasing -fno-common \
-		   -Werror-implicit-function-declaration \
-		   -Wno-format-security \
-		   -fno-delete-null-pointer-checks \
+KBUILD_CFLAGS   := -Wall -DNDEBUG -Wundef -Wstrict-prototypes -Wno-trigraphs \
+                   -fno-strict-aliasing -fno-common \
+                   -Werror-implicit-function-declaration \
+                   -Wno-format-security \
+                   -Wno-sizeof-pointer-memaccess \
+                   -fno-delete-null-pointer-checks \
+ 		   -fpredictive-commoning -fgcse-after-reload \
+                   -fmodulo-sched -fmodulo-sched-allow-regmoves \
 		   -mtune=cortex-a15 -mfpu=neon \
-		   -std=gnu89 \
-		   -ftree-vectorize
+		   -std=gnu89
 
 ifdef CONFIG_CC_GRAPHITE_OPTIMIZATION
-KBUILD_CFLAGS   += -fgraphite -fgraphite-identity -floop-flatten -floop-parallelize-all -ftree-loop-linear -floop-interchange -floop-strip-mine -floop-block
+KBUILD_CFLAGS   += -fgraphite -floop-flatten -floop-parallelize-all -ftree-loop-linear -floop-interchange -floop-strip-mine -floop-block
 endif
 
 KBUILD_AFLAGS_KERNEL :=
@@ -460,7 +465,7 @@ asm-generic:
 
 no-dot-config-targets := clean mrproper distclean \
 			 cscope gtags TAGS tags help %docs check% coccicheck \
-			 include/linux/version.h headers_% archheaders archscripts \
+			 include/linux/version.h headers_% \
 			 kernelversion %src-pkg
 
 config-targets := 0
@@ -579,20 +584,14 @@ all: vmlinux
 ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
 KBUILD_CFLAGS	+= -Os $(call cc-disable-warning,maybe-uninitialized,)
 else
-KBUILD_CFLAGS	+= -O2
+KBUILD_CFLAGS	+= -Ofast -fmodulo-sched -fmodulo-sched-allow-regmoves -fno-tree-vectorize -fno-inline-functions
 endif
-# conserve stack if available
-# do this early so that an architecture can override it.
-KBUILD_CFLAGS   += $(call cc-option,-fconserve-stack)
 
 include $(srctree)/arch/$(SRCARCH)/Makefile
 
-# ifneq ($(CONFIG_FRAME_WARN),0)
-# KBUILD_CFLAGS += $(call cc-option,-Wframe-larger-than=${CONFIG_FRAME_WARN})
-# endif
-
-# Tell gcc to never replace conditional load with a non-conditional one
-KBUILD_CFLAGS	+= $(call cc-option,--param=allow-store-data-races=0)
+#ifneq ($(CONFIG_FRAME_WARN),0)
+#KBUILD_CFLAGS += $(call cc-option,-Wframe-larger-than=${CONFIG_FRAME_WARN})
+#endif
 
 # Force gcc to behave correct even for buggy distributions
 ifndef CONFIG_CC_STACKPROTECTOR
@@ -603,20 +602,18 @@ endif
 # Use make W=1 to enable this warning (see scripts/Makefile.build)
 KBUILD_CFLAGS += $(call cc-disable-warning, unused-but-set-variable)
 
-#ifdef CONFIG_FRAME_POINTER
-#KBUILD_CFLAGS	+= -fno-omit-frame-pointer -fno-optimize-sibling-calls
-#else
+ifdef CONFIG_FRAME_POINTER
+KBUILD_CFLAGS	+= -fno-omit-frame-pointer -fno-optimize-sibling-calls
+else
 # Some targets (ARM with Thumb2, for example), can't be built with frame
 # pointers.  For those, we don't have FUNCTION_TRACER automatically
 # select FRAME_POINTER.  However, FUNCTION_TRACER adds -pg, and this is
 # incompatible with -fomit-frame-pointer with current GCC, so we don't use
 # -fomit-frame-pointer with FUNCTION_TRACER.
-#ifndef CONFIG_FUNCTION_TRACER
+ifndef CONFIG_FUNCTION_TRACER
 KBUILD_CFLAGS	+= -fomit-frame-pointer
-#endif
-#endif
-
-KBUILD_CFLAGS   += $(call cc-option, -fno-var-tracking-assignments)
+endif
+endif
 
 ifdef CONFIG_DEBUG_INFO
 KBUILD_CFLAGS	+= -gdwarf-2
@@ -627,15 +624,15 @@ ifdef CONFIG_DEBUG_INFO_REDUCED
 KBUILD_CFLAGS 	+= $(call cc-option, -femit-struct-debug-baseonly)
 endif
 
-#ifdef CONFIG_FUNCTION_TRACER
-#KBUILD_CFLAGS	+= -pg
-#ifdef CONFIG_DYNAMIC_FTRACE
-#	ifdef CONFIG_HAVE_C_RECORDMCOUNT
-#		BUILD_C_RECORDMCOUNT := y
-#		export BUILD_C_RECORDMCOUNT
-#	endif
-#endif
-#endif
+ifdef CONFIG_FUNCTION_TRACER
+KBUILD_CFLAGS	+= -pg
+ifdef CONFIG_DYNAMIC_FTRACE
+	ifdef CONFIG_HAVE_C_RECORDMCOUNT
+		BUILD_C_RECORDMCOUNT := y
+		export BUILD_C_RECORDMCOUNT
+	endif
+endif
+endif
 
 # We trigger additional mismatches with less inlining
 ifdef CONFIG_DEBUG_SECTION_MISMATCH
@@ -654,6 +651,9 @@ KBUILD_CFLAGS += $(call cc-disable-warning, pointer-sign)
 
 # disable invalid "can't wrap" optimizations for signed / pointers
 KBUILD_CFLAGS	+= $(call cc-option,-fno-strict-overflow)
+
+# conserve stack if available
+KBUILD_CFLAGS   += $(call cc-option,-fconserve-stack)
 
 # use the deterministic mode of AR if available
 KBUILD_ARFLAGS := $(call ar-option,D)
@@ -1002,7 +1002,7 @@ prepare1: prepare2 include/linux/version.h include/generated/utsrelease.h \
                    include/config/auto.conf
 	$(cmd_crmodverdir)
 
-archprepare: archheaders archscripts prepare1 scripts_basic
+archprepare: prepare1 scripts_basic
 
 prepare0: archprepare FORCE
 	$(Q)$(MAKE) $(build)=. missing-syscalls
@@ -1069,14 +1069,8 @@ hdr-inst := -rR -f $(srctree)/scripts/Makefile.headersinst obj
 # If we do an all arch process set dst to asm-$(hdr-arch)
 hdr-dst = $(if $(KBUILD_HEADERS), dst=include/asm-$(hdr-arch), dst=include/asm)
 
-PHONY += archheaders
-archheaders:
-
-PHONY += archscripts
-archscripts:
-
 PHONY += __headers
-__headers: include/linux/version.h scripts_basic asm-generic archheaders archscripts FORCE
+__headers: include/linux/version.h scripts_basic asm-generic FORCE
 	$(Q)$(MAKE) $(build)=scripts build_unifdef
 
 PHONY += headers_install_all
@@ -1248,7 +1242,7 @@ rpm: include/config/kernel.release FORCE
 # ---------------------------------------------------------------------------
 
 boards := $(wildcard $(srctree)/arch/$(SRCARCH)/configs/*_defconfig)
-boards := $(sort $(notdir $(boards)))
+boards := $(notdir $(boards))
 board-dirs := $(dir $(wildcard $(srctree)/arch/$(SRCARCH)/configs/*/*_defconfig))
 board-dirs := $(sort $(notdir $(board-dirs:/=)))
 
