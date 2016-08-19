@@ -310,6 +310,7 @@ static void update_sampling_rate(unsigned int new_rate)
 	dbs_tuners_ins.sampling_rate = new_rate
 				     = max(new_rate, min_sampling_rate);
 
+	get_online_cpus();
 	for_each_online_cpu(cpu) {
 		struct cpufreq_policy *policy;
 		struct cpu_dbs_info_s *dbs_info;
@@ -344,6 +345,7 @@ static void update_sampling_rate(unsigned int new_rate)
 		}
 		mutex_unlock(&dbs_info->timer_mutex);
 	}
+	put_online_cpus();
 }
 
 static ssize_t store_sampling_rate(struct kobject *a, struct attribute *b,
@@ -562,8 +564,8 @@ static ssize_t store_powersave_bias(struct kobject *a, struct attribute *b,
 
 	dbs_tuners_ins.powersave_bias = input;
 
-	mutex_lock(&dbs_mutex);
 	get_online_cpus();
+	mutex_lock(&dbs_mutex);
 
 	if (!bypass) {
 		if (reenable_timer) {
@@ -620,9 +622,9 @@ skip_this_cpu:
 
 			if (dbs_info->cur_policy) {
 				/* cpu using stockdemand, cancel dbs timer */
-				mutex_lock(&dbs_info->timer_mutex);
 				dbs_timer_exit(dbs_info);
 
+				mutex_lock(&dbs_info->timer_mutex);
 				stockdemand_powersave_bias_setspeed(
 					dbs_info->cur_policy,
 					NULL,
@@ -635,6 +637,8 @@ skip_this_cpu_bypass:
 		}
 	}
 
+	mutex_unlock(&dbs_mutex);
+	put_online_cpus();
 	return count;
 }
 
@@ -1257,6 +1261,7 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 		this_dbs_info->cur_policy = NULL;
 		if (!cpu)
 			input_unregister_handler(&dbs_input_handler);
+		mutex_unlock(&dbs_mutex);
 		if (!dbs_enable) {
 			sysfs_remove_group(cpufreq_global_kobject,
 					   &dbs_attr_group);
@@ -1265,7 +1270,6 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 				&dbs_migration_nb);
 		}
 
-		mutex_unlock(&dbs_mutex);
 
 		break;
 
