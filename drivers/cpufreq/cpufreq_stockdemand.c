@@ -1022,12 +1022,11 @@ bail_acq_sema_failed:
 static int dbs_migration_notify(struct notifier_block *nb,
 				unsigned long target_cpu, void *arg)
 {
-	struct dbs_sync_work_struct *sync_work =
-		&per_cpu(dbs_sync_work, target_cpu);
-	sync_work->src_cpu = (unsigned int)arg;
+	struct cpu_dbs_info_s *target_dbs_info =
+		&per_cpu(od_cpu_dbs_info, target_cpu);
 
-	queue_work_on(target_cpu, input_wq,
-		&per_cpu(dbs_sync_work, target_cpu).work);
+	atomic_set(&target_dbs_info->src_sync_cpu, (int)arg);
+	wake_up(&target_dbs_info->sync_wq);
 
 	return NOTIFY_OK;
 }
