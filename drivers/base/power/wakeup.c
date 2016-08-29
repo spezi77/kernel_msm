@@ -394,7 +394,6 @@ EXPORT_SYMBOL_GPL(device_set_wakeup_enable);
  */
 static void wakeup_source_deactivate(struct wakeup_source *ws)
 {
-        unsigned int cnt, inpr, cec;
         ktime_t duration;
         ktime_t now;
 
